@@ -69,7 +69,13 @@ const RECIPES_ONLY_SCHEMA = {
   required: ["recipes"],
 };
 
-async function callGemini(env: GeminiEnv, prompt: string, schema: object, imageBase64?: string): Promise<string> {
+async function callGemini(
+  env: GeminiEnv,
+  prompt: string,
+  schema: object,
+  imageBase64?: string,
+  temperature?: number,
+): Promise<string> {
   const parts: Record<string, unknown>[] = [{ text: prompt }];
   if (imageBase64) parts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
 
@@ -83,6 +89,7 @@ async function callGemini(env: GeminiEnv, prompt: string, schema: object, imageB
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: schema,
+          ...(temperature !== undefined ? { temperature } : {}),
         },
       }),
     },
@@ -144,16 +151,37 @@ ${RECIPE_FIELD_GUIDE}`;
   return { ingredients, recipes: toRecipes(text) };
 }
 
+/** "오늘 뭐 먹지" 추천마다 다른 결과가 나오도록 무작위로 섞어 넣는 테마예요. */
+const TODAY_MENU_THEMES = [
+  "든든하게 배 채우는",
+  "가볍고 산뜻한",
+  "매콤하고 자극적인",
+  "국물이 있는",
+  "혼밥하기 좋은 간단한",
+  "손님 대접하기 좋은",
+  "다이어트에 부담 없는",
+  "든든한 보양식 느낌의",
+  "밑반찬 없이 한 그릇으로 끝내는",
+  "야식으로도 좋은",
+];
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
 /**
  * 재료 입력 없이, 오늘 먹을 만한 한국 가정식 메뉴를 일반 추천해줘요("오늘 뭐 먹지" 버튼용).
+ * 매번 같은 답이 나오지 않도록 테마를 무작위로 골라 넣고 temperature도 높여요.
  */
 export async function recommendTodayMenu(env: GeminiEnv): Promise<AnalyzeResult> {
   const today = new Date();
-  const prompt = `특정 재료 제약 없이, 오늘(${today.getMonth() + 1}월) 먹기 좋은 한국 가정식 메뉴를 계절감 있게 3~4개 추천해주세요.
+  const theme = pickRandom(TODAY_MENU_THEMES);
+  const prompt = `특정 재료 제약 없이, 오늘(${today.getMonth() + 1}월) 먹기 좋은 "${theme}" 한국 가정식 메뉴를 계절감 있게 3~4개 추천해주세요.
 너무 특이하거나 구하기 힘든 재료보다는 흔히 구할 수 있는 재료 위주로 골라주세요.
+같은 종류의 메뉴가 반복되지 않도록 다양하게 골라주세요.
 ${RECIPE_FIELD_GUIDE}`;
 
-  const text = await callGemini(env, prompt, RECIPES_ONLY_SCHEMA);
+  const text = await callGemini(env, prompt, RECIPES_ONLY_SCHEMA, undefined, 1.2);
   return { ingredients: [], recipes: toRecipes(text) };
 }
 
@@ -171,7 +199,7 @@ export async function fetchMoreRecipes(env: GeminiEnv, excludeNames: string[], s
   } else if ("ingredients" in source) {
     context = `사용자가 냉장고에 있다고 직접 알려준 재료는 다음과 같아요: ${source.ingredients.join(", ")}.`;
   } else {
-    context = "특정 재료 제약 없이 오늘 먹기 좋은 한국 가정식 메뉴를 추천하는 상황이에요.";
+    context = `특정 재료 제약 없이 오늘 먹기 좋은 "${pickRandom(TODAY_MENU_THEMES)}" 한국 가정식 메뉴를 추천하는 상황이에요.`;
   }
 
   const prompt = `${context}
@@ -179,6 +207,6 @@ export async function fetchMoreRecipes(env: GeminiEnv, excludeNames: string[], s
 usedIngredients에는 실제로 사용하는 재료만, neededIngredients에는 없어서 추가로 구매해야 하는 재료만 넣어주세요.
 ${RECIPE_FIELD_GUIDE}`;
 
-  const text = await callGemini(env, prompt, RECIPES_ONLY_SCHEMA, imageBase64);
+  const text = await callGemini(env, prompt, RECIPES_ONLY_SCHEMA, imageBase64, "imageBase64" in source ? undefined : 1.2);
   return toRecipes(text);
 }
