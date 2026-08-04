@@ -1,9 +1,10 @@
 import { Button } from "@toss/tds-mobile";
 import { openURL } from "@apps-in-toss/web-framework";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BannerAd } from "../components/BannerAd";
 import { PartnersDisclosure } from "../components/PartnersDisclosure";
 import { getCoupangPartnersLink } from "../api";
+import { addFavorite, loadFavorites, removeFavorite } from "../favorites";
 import { getCategoryStyle } from "../foodVisuals";
 import type { Recipe } from "../types";
 
@@ -14,7 +15,22 @@ interface RecipeDetailProps {
 
 export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
   const [loadingKeyword, setLoadingKeyword] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
   const style = getCategoryStyle(recipe.category);
+
+  useEffect(() => {
+    loadFavorites().then((favorites) => setIsFavorite(favorites.some((item) => item.id === recipe.id)));
+  }, [recipe.id]);
+
+  const handleToggleFavorite = async () => {
+    if (isFavorite) {
+      await removeFavorite(recipe.id);
+      setIsFavorite(false);
+    } else {
+      await addFavorite(recipe);
+      setIsFavorite(true);
+    }
+  };
 
   const handleBuyIngredient = async (ingredient: string) => {
     if (loadingKeyword) return;
@@ -31,9 +47,18 @@ export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
 
   return (
     <div className="screen">
-      <button type="button" className="back-button" onClick={onBack}>
-        ← 목록으로
-      </button>
+      <div className="recipe-detail-top-row">
+        <button type="button" className="back-button" onClick={onBack}>
+          ← 목록으로
+        </button>
+        <button
+          type="button"
+          className={`favorite-toggle ${isFavorite ? "favorite-toggle-active" : ""}`}
+          onClick={handleToggleFavorite}
+        >
+          {isFavorite ? "⭐ 즐겨찾기됨" : "☆ 즐겨찾기"}
+        </button>
+      </div>
 
       <div className="recipe-hero" style={{ background: style.hero }}>
         <span className="recipe-hero-emoji">{recipe.emoji}</span>

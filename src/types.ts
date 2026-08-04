@@ -25,3 +25,9 @@ export interface AnalyzeResult {
   ingredients: string[];
   recipes: Recipe[];
 }
+
+/** 이번 추천이 어떤 방식으로 시작됐는지 — "더보기" 재요청 시 같은 맥락을 유지하는 데 사용해요. */
+export type AnalysisSource =
+  | { type: "image"; base64: string }
+  | { type: "text"; ingredients: string[] }
+  | { type: "today" };

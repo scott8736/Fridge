@@ -162,6 +162,13 @@
   padding: 40px 0;
 }
 
+.home-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 .home-history-link {
   align-self: center;
   border: none;
@@ -217,6 +224,34 @@
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.ingredient-chip-removable {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.manual-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.manual-input-field {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #e5e8eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.manual-input-field:focus {
+  outline: none;
+  border-color: #3fd599;
 }
 
 .recipe-card {
@@ -296,6 +331,29 @@
   gap: 12px;
   font-size: 13px;
   color: #8b95a1;
+}
+
+.recipe-detail-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.favorite-toggle {
+  border: none;
+  background: #f2f4f6;
+  color: #4e5968;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.favorite-toggle-active {
+  background: #fff2d9;
+  color: #b16a00;
 }
 
 .back-button {

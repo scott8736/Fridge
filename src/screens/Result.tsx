@@ -8,27 +8,27 @@ import { AD_GROUP_IDS } from "../adConfig";
 import { fetchMoreRecipes } from "../api";
 import { playFullScreenAd, preloadFullScreenAd } from "../hooks/useFullScreenAd";
 import { shareChallenge } from "../share";
-import type { AnalyzeResult, Recipe } from "../types";
+import type { AnalysisSource, AnalyzeResult, Recipe } from "../types";
 
 interface ResultProps {
   result: AnalyzeResult;
   isDemo?: boolean;
   demoLabel?: string;
-  /** 실제 분석 사진의 base64예요. 데모 모드에서는 없어요(추가 레시피 재생성에 필요). */
-  imageBase64?: string;
+  /** 이번 추천의 출처예요. 데모 모드에서는 없어요(추가 레시피 재생성에 필요). */
+  source?: AnalysisSource;
   onSelectRecipe: (recipe: Recipe) => void;
   onRetake: () => void;
 }
 
-export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe, onRetake }: ResultProps) {
+export function Result({ result, isDemo, demoLabel, source, onSelectRecipe, onRetake }: ResultProps) {
   const [bonusRecipes, setBonusRecipes] = useState<Recipe[]>([]);
   const [loadingBonus, setLoadingBonus] = useState(false);
   const [bonusError, setBonusError] = useState(false);
   const [sharing, setSharing] = useState(false);
 
   const allRecipes = [...result.recipes, ...bonusRecipes];
-  // 데모 화면엔 실제 사진이 없어서 추가 레시피를 새로 생성할 수 없어요 -> 보상형 버튼 자체를 숨겨요.
-  const canWatchAdForMore = !isDemo && !!imageBase64 && bonusRecipes.length === 0 && !!AD_GROUP_IDS.reward;
+  // 데모 화면엔 출처가 없어서 추가 레시피를 새로 생성할 수 없어요 -> 보상형 버튼 자체를 숨겨요.
+  const canWatchAdForMore = !isDemo && !!source && bonusRecipes.length === 0 && !!AD_GROUP_IDS.reward;
 
   useEffect(() => {
     // 버튼을 누르기 전에 미리 로드해두면, 실제로 누를 때 대기 없이 바로 노출돼요.
@@ -37,19 +37,19 @@ export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe,
   }, []);
 
   const handleWatchAdForMore = async () => {
-    if (!imageBase64 || loadingBonus) return;
+    if (!source || loadingBonus) return;
     setLoadingBonus(true);
     setBonusError(false);
-    const { earnedReward } = await playFullScreenAd(AD_GROUP_IDS.reward);
-    if (earnedReward) {
-      try {
+    try {
+      const { earnedReward } = await playFullScreenAd(AD_GROUP_IDS.reward);
+      if (earnedReward) {
         const existingNames = result.recipes.map((recipe) => recipe.name);
-        const moreRecipes = await fetchMoreRecipes(imageBase64, existingNames);
+        const moreRecipes = await fetchMoreRecipes(source, existingNames);
         setBonusRecipes(moreRecipes);
-      } catch {
+      } else {
         setBonusError(true);
       }
-    } else {
+    } catch {
       setBonusError(true);
     }
     setLoadingBonus(false);
@@ -74,14 +74,16 @@ export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe,
           👀 "{demoLabel}" 예시 화면이에요. 실제로는 내 냉장고 사진으로 분석해드려요.
         </div>
       )}
-      <div className="result-header">
-        <p className="result-title">이런 재료를 찾았어요</p>
-        <div className="ingredient-list">
-          {result.ingredients.map((ingredient) => (
-            <IngredientChip key={ingredient} label={ingredient} />
-          ))}
+      {result.ingredients.length > 0 && (
+        <div className="result-header">
+          <p className="result-title">이런 재료를 찾았어요</p>
+          <div className="ingredient-list">
+            {result.ingredients.map((ingredient) => (
+              <IngredientChip key={ingredient} label={ingredient} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="result-recipes">
         <p className="result-title">추천 레시피</p>
@@ -104,7 +106,7 @@ export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe,
       </Button>
 
       <Button variant="weak" display="full" size="large" onClick={onRetake}>
-        {isDemo ? "내 냉장고로 직접 해보기" : "다시 촬영하기"}
+        {isDemo ? "내 냉장고로 직접 해보기" : "다시 시작하기"}
       </Button>
 
       <BannerAd variant="expanded" />

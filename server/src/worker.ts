@@ -1,5 +1,5 @@
 import { createCoupangPartnersLink, type Env as CoupangEnv } from "./coupang";
-import { analyzeFridgeImage, fetchMoreRecipes } from "./gemini";
+import { analyzeFridgeImage, analyzeIngredientList, fetchMoreRecipes, recommendTodayMenu, type RecipeSource } from "./gemini";
 
 export interface Env extends CoupangEnv {}
 
@@ -40,15 +40,40 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/analyze-text" && request.method === "POST") {
+      try {
+        const { ingredients } = (await request.json()) as { ingredients?: string[] };
+        if (!ingredients || ingredients.length === 0) return json({ error: "ingredients가 필요해요." }, 400);
+
+        const result = await analyzeIngredientList(env, ingredients);
+        return json(result);
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : "분석에 실패했어요." }, 500);
+      }
+    }
+
+    if (url.pathname === "/api/recommend-today" && request.method === "POST") {
+      try {
+        const result = await recommendTodayMenu(env);
+        return json(result);
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : "추천에 실패했어요." }, 500);
+      }
+    }
+
     if (url.pathname === "/api/more-recipes" && request.method === "POST") {
       try {
-        const { imageBase64, excludeNames } = (await request.json()) as {
+        const { imageBase64, ingredients, excludeNames } = (await request.json()) as {
           imageBase64?: string;
+          ingredients?: string[];
           excludeNames?: string[];
         };
-        if (!imageBase64) return json({ error: "imageBase64가 필요해요." }, 400);
 
-        const recipes = await fetchMoreRecipes(env, imageBase64, excludeNames ?? []);
+        let source: RecipeSource = {};
+        if (imageBase64) source = { imageBase64 };
+        else if (ingredients?.length) source = { ingredients };
+
+        const recipes = await fetchMoreRecipes(env, excludeNames ?? [], source);
         return json({ recipes });
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : "추가 추천에 실패했어요." }, 500);
