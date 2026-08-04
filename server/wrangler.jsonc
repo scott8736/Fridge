@@ -1,0 +1,8 @@
+{
+  "name": "fridge-recipe-api",
+  "compatibility_date": "2026-08-01",
+  "main": "src/worker.ts",
+  "vars": {
+    "COUPANG_SUB_ID": "tossfridge"
+  }
+}

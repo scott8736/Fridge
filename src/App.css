@@ -1,0 +1,274 @@
+#root {
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+@media (min-width: 481px) {
+  #root {
+    background-color: #ffffff !important;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0 20px 32px;
+  box-sizing: border-box;
+}
+
+.screen-center {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.home-illustration {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-tips {
+  background: #f2f4f6;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.home-tips-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #191f28;
+  margin: 0 0 10px;
+}
+
+.home-tips ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #4e5968;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.error-banner {
+  margin: 16px 20px 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff0f0;
+  color: #e12d39;
+  font-size: 14px;
+}
+
+.analyzing-image-wrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.analyzing-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.6);
+}
+
+.analyzing-spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #3fd599;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.analyzing-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #191f28;
+  margin: 24px 0 0;
+}
+
+.analyzing-desc {
+  font-size: 14px;
+  color: #8b95a1;
+  white-space: pre-line;
+  margin: 0;
+}
+
+.result-header,
+.result-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #191f28;
+  margin: 0;
+}
+
+.ingredient-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ingredient-chip {
+  background: #f2f4f6;
+  color: #333d4b;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recipe-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #e5e8eb;
+  border-radius: 16px;
+  padding: 16px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.recipe-card:active {
+  background: #f9fafb;
+}
+
+.recipe-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recipe-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #191f28;
+}
+
+.recipe-card-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #12b564;
+  background: #e7f9f1;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.recipe-card-desc {
+  font-size: 14px;
+  color: #4e5968;
+  margin: 0;
+}
+
+.recipe-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #8b95a1;
+}
+
+.back-button {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  color: #4e5968;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.recipe-detail-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #191f28;
+  margin: 0;
+}
+
+.recipe-detail-desc {
+  font-size: 14px;
+  color: #4e5968;
+  margin: 0;
+}
+
+.recipe-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recipe-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #191f28;
+  margin: 0;
+}
+
+.buy-ingredient-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.buy-ingredient-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #333d4b;
+}
+
+.plain-list,
+.step-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #333d4b;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.partners-disclosure {
+  font-size: 11px;
+  color: #b0b8c1;
+  text-align: center;
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
