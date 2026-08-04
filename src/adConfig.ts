@@ -15,4 +15,4 @@ export const AD_GROUP_IDS = {
  * 전면광고를 세션(앱을 새로 켤 때마다)당 최대 몇 번까지 보여줄지예요.
  * 너무 자주 보여주면 반복 촬영하는 헤비유저가 이탈할 수 있어서 상한을 둬요.
  */
-export const INTERSTITIAL_SESSION_CAP = 2;
+export const INTERSTITIAL_SESSION_CAP = 3;
