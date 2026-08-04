@@ -3,6 +3,8 @@ dist/
 .wrangler/
 dev.log
 *.log
+.granite/
+*.ait
 
 # secrets — 절대 커밋하지 마세요
 .dev.vars
