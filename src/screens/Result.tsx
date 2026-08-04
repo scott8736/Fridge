@@ -10,11 +10,12 @@ import type { AnalyzeResult, Recipe } from "../types";
 
 interface ResultProps {
   result: AnalyzeResult;
+  isDemo?: boolean;
   onSelectRecipe: (recipe: Recipe) => void;
   onRetake: () => void;
 }
 
-export function Result({ result, onSelectRecipe, onRetake }: ResultProps) {
+export function Result({ result, isDemo, onSelectRecipe, onRetake }: ResultProps) {
   const [bonusRecipes, setBonusRecipes] = useState<Recipe[]>([]);
   const [loadingBonus, setLoadingBonus] = useState(false);
 
@@ -34,6 +35,7 @@ export function Result({ result, onSelectRecipe, onRetake }: ResultProps) {
 
   return (
     <div className="screen">
+      {isDemo && <div className="demo-banner">👀 예시 화면이에요. 실제로는 내 냉장고 사진으로 분석해드려요.</div>}
       <div className="result-header">
         <p className="result-title">이런 재료를 찾았어요</p>
         <div className="ingredient-list">
@@ -57,7 +59,7 @@ export function Result({ result, onSelectRecipe, onRetake }: ResultProps) {
       )}
 
       <Button variant="weak" display="full" size="large" onClick={onRetake}>
-        다시 촬영하기
+        {isDemo ? "내 냉장고로 직접 해보기" : "다시 촬영하기"}
       </Button>
 
       <BannerAd />

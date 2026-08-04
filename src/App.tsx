@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { analyzeFridgeImage } from "./api";
 import { AD_GROUP_IDS } from "./adConfig";
+import { DEMO_RESULT } from "./demoData";
 import { playFullScreenAd } from "./hooks/useFullScreenAd";
 import { Analyzing } from "./screens/Analyzing";
 import { Home } from "./screens/Home";
@@ -17,9 +18,11 @@ function App() {
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isDemo, setIsDemo] = useState(false);
 
   const handleImageSelected = async (base64: string) => {
     setImageUri(`data:image/jpeg;base64,${base64}`);
+    setIsDemo(false);
     setPage("analyzing");
     setErrorMessage("");
 
@@ -34,9 +37,17 @@ function App() {
     }
   };
 
+  const handleTryDemo = () => {
+    setIsDemo(true);
+    setResult(DEMO_RESULT);
+    setErrorMessage("");
+    setPage("result");
+  };
+
   const handleRetake = () => {
     setResult(null);
     setImageUri("");
+    setIsDemo(false);
     setPage("home");
   };
 
@@ -48,6 +59,7 @@ function App() {
     return (
       <Result
         result={result}
+        isDemo={isDemo}
         onRetake={handleRetake}
         onSelectRecipe={(recipe) => {
           setSelectedRecipe(recipe);
@@ -64,7 +76,7 @@ function App() {
   return (
     <>
       {errorMessage && <div className="error-banner">{errorMessage}</div>}
-      <Home onImageSelected={handleImageSelected} onError={setErrorMessage} />
+      <Home onImageSelected={handleImageSelected} onError={setErrorMessage} onTryDemo={handleTryDemo} />
     </>
   );
 }

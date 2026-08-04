@@ -28,10 +28,48 @@
   padding: 20px;
 }
 
-.home-illustration {
+.example-preview {
   display: flex;
-  justify-content: center;
-  padding: 8px 0 4px;
+  flex-direction: column;
+  gap: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e8eb;
+  border-radius: 20px;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.example-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.example-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b16a00;
+  background: #fff2d9;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.example-preview-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #191f28;
+}
+
+.example-preview .recipe-card {
+  cursor: pointer;
+  background: #ffffff;
+}
+
+.example-preview-cta {
+  align-self: flex-end;
+  font-size: 13px;
+  font-weight: 600;
+  color: #12b564;
 }
 
 .home-actions {
@@ -115,6 +153,15 @@
   color: #8b95a1;
   white-space: pre-line;
   margin: 0;
+}
+
+.demo-banner {
+  background: #fff2d9;
+  color: #9a5b00;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 10px 14px;
 }
 
 .result-header,
