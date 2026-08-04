@@ -23,6 +23,7 @@ interface ResultProps {
 export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe, onRetake }: ResultProps) {
   const [bonusRecipes, setBonusRecipes] = useState<Recipe[]>([]);
   const [loadingBonus, setLoadingBonus] = useState(false);
+  const [bonusError, setBonusError] = useState(false);
   const [sharing, setSharing] = useState(false);
 
   const allRecipes = [...result.recipes, ...bonusRecipes];
@@ -38,6 +39,7 @@ export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe,
   const handleWatchAdForMore = async () => {
     if (!imageBase64 || loadingBonus) return;
     setLoadingBonus(true);
+    setBonusError(false);
     const { earnedReward } = await playFullScreenAd(AD_GROUP_IDS.reward);
     if (earnedReward) {
       try {
@@ -45,8 +47,10 @@ export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe,
         const moreRecipes = await fetchMoreRecipes(imageBase64, existingNames);
         setBonusRecipes(moreRecipes);
       } catch {
-        // 추가 추천에 실패해도 화면은 그대로 유지하고, 버튼만 원상복구해요.
+        setBonusError(true);
       }
+    } else {
+      setBonusError(true);
     }
     setLoadingBonus(false);
   };
@@ -87,9 +91,12 @@ export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe,
       </div>
 
       {canWatchAdForMore && (
-        <Button variant="weak" display="full" size="large" loading={loadingBonus} onClick={handleWatchAdForMore}>
-          🎁 광고 보고 새 레시피 더 받기
-        </Button>
+        <>
+          <Button variant="weak" display="full" size="large" loading={loadingBonus} onClick={handleWatchAdForMore}>
+            🎁 광고 보고 새 레시피 더 받기
+          </Button>
+          {bonusError && <p className="bonus-error-hint">광고를 끝까지 봐야 새 레시피를 받을 수 있어요. 다시 시도해주세요.</p>}
+        </>
       )}
 
       <Button variant="weak" display="full" size="large" loading={sharing} onClick={handleShare}>

@@ -72,7 +72,9 @@ function showAndWait(adGroupId: string): Promise<PlayFullScreenAdResult> {
       },
     });
 
-    setTimeout(() => finish({ earnedReward, shown: false }), 8000);
+    // 리워드 영상은 15~30초 이상 걸릴 수 있어서, 로드 타임아웃(8초)보다 훨씬 길게 잡아요.
+    // 짧게 잡으면 사용자가 끝까지 보고 있는데도 "실패"로 판정해버려서 보상이 유실돼요.
+    setTimeout(() => finish({ earnedReward, shown: false }), 60000);
   });
 }
 

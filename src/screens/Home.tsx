@@ -10,10 +10,12 @@ interface HomeProps {
   onImageSelected: (base64: string) => void;
   onError: (message: string) => void;
   onTryDemo: () => void;
+  onViewHistory: () => void;
+  hasHistory: boolean;
   demoSet: DemoSet;
 }
 
-export function Home({ onImageSelected, onError, onTryDemo, demoSet }: HomeProps) {
+export function Home({ onImageSelected, onError, onTryDemo, onViewHistory, hasHistory, demoSet }: HomeProps) {
   const handleTakePhoto = async () => {
     try {
       const photo = await openCamera({ base64: true, maxWidth: 1024 });
@@ -69,6 +71,12 @@ export function Home({ onImageSelected, onError, onTryDemo, demoSet }: HomeProps
           🖼 앨범에서 사진 선택하기
         </Button>
       </div>
+
+      {hasHistory && (
+        <button type="button" className="home-history-link" onClick={onViewHistory}>
+          📖 지난 촬영 기록 보기
+        </button>
+      )}
 
       <div className="home-tips">
         <p className="home-tips-title">이런 분들께 추천해요</p>
