@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { analyzeFridgeImage } from "./api";
 import { AD_GROUP_IDS } from "./adConfig";
-import { DEMO_RESULT } from "./demoData";
+import { pickRandomDemoSet } from "./demoData";
 import { playFullScreenAd } from "./hooks/useFullScreenAd";
 import { Analyzing } from "./screens/Analyzing";
 import { Home } from "./screens/Home";
@@ -19,6 +19,8 @@ function App() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDemo, setIsDemo] = useState(false);
+  // 방문마다 한 번만 랜덤으로 뽑아서, 홈 미리보기와 실제 체험 화면이 같은 세트를 보여주게 해요.
+  const [demoSet] = useState(() => pickRandomDemoSet());
 
   const handleImageSelected = async (base64: string) => {
     setImageUri(`data:image/jpeg;base64,${base64}`);
@@ -39,7 +41,7 @@ function App() {
 
   const handleTryDemo = () => {
     setIsDemo(true);
-    setResult(DEMO_RESULT);
+    setResult(demoSet.result);
     setErrorMessage("");
     setPage("result");
   };
@@ -60,6 +62,7 @@ function App() {
       <Result
         result={result}
         isDemo={isDemo}
+        demoLabel={demoSet.label}
         onRetake={handleRetake}
         onSelectRecipe={(recipe) => {
           setSelectedRecipe(recipe);
@@ -76,7 +79,12 @@ function App() {
   return (
     <>
       {errorMessage && <div className="error-banner">{errorMessage}</div>}
-      <Home onImageSelected={handleImageSelected} onError={setErrorMessage} onTryDemo={handleTryDemo} />
+      <Home
+        onImageSelected={handleImageSelected}
+        onError={setErrorMessage}
+        onTryDemo={handleTryDemo}
+        demoSet={demoSet}
+      />
     </>
   );
 }

@@ -3,6 +3,7 @@ import { openURL } from "@apps-in-toss/web-framework";
 import { useState } from "react";
 import { PartnersDisclosure } from "../components/PartnersDisclosure";
 import { getCoupangPartnersLink } from "../api";
+import { getCategoryStyle } from "../foodVisuals";
 import type { Recipe } from "../types";
 
 interface RecipeDetailProps {
@@ -12,6 +13,7 @@ interface RecipeDetailProps {
 
 export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
   const [loadingKeyword, setLoadingKeyword] = useState<string | null>(null);
+  const style = getCategoryStyle(recipe.category);
 
   const handleBuyIngredient = async (ingredient: string) => {
     if (loadingKeyword) return;
@@ -31,6 +33,10 @@ export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
       <button type="button" className="back-button" onClick={onBack}>
         ← 목록으로
       </button>
+
+      <div className="recipe-hero" style={{ background: style.hero }}>
+        <span className="recipe-hero-emoji">{recipe.emoji}</span>
+      </div>
 
       <p className="recipe-detail-title">{recipe.name}</p>
       <p className="recipe-detail-desc">{recipe.description}</p>

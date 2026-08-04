@@ -4,15 +4,16 @@ import { BannerAd } from "../components/BannerAd";
 import { IngredientChip } from "../components/IngredientChip";
 import { PartnersDisclosure } from "../components/PartnersDisclosure";
 import { RecipeCard } from "../components/RecipeCard";
-import { DEMO_RESULT } from "../demoData";
+import type { DemoSet } from "../demoData";
 
 interface HomeProps {
   onImageSelected: (base64: string) => void;
   onError: (message: string) => void;
   onTryDemo: () => void;
+  demoSet: DemoSet;
 }
 
-export function Home({ onImageSelected, onError, onTryDemo }: HomeProps) {
+export function Home({ onImageSelected, onError, onTryDemo, demoSet }: HomeProps) {
   const handleTakePhoto = async () => {
     try {
       const photo = await openCamera({ base64: true, maxWidth: 1024 });
@@ -49,14 +50,14 @@ export function Home({ onImageSelected, onError, onTryDemo }: HomeProps) {
       <div className="example-preview" onClick={onTryDemo}>
         <div className="example-preview-header">
           <span className="example-badge">예시</span>
-          <span className="example-preview-title">이렇게 추천해드려요</span>
+          <span className="example-preview-title">{demoSet.label}라면 이렇게 추천해드려요</span>
         </div>
         <div className="ingredient-list">
-          {DEMO_RESULT.ingredients.slice(0, 4).map((ingredient) => (
+          {demoSet.result.ingredients.slice(0, 4).map((ingredient) => (
             <IngredientChip key={ingredient} label={ingredient} />
           ))}
         </div>
-        <RecipeCard recipe={DEMO_RESULT.recipes[0]} onClick={onTryDemo} />
+        <RecipeCard recipe={demoSet.result.recipes[0]} onClick={onTryDemo} />
         <span className="example-preview-cta">탭하고 샘플로 체험해보기 →</span>
       </div>
 
