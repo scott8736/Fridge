@@ -1,9 +1,9 @@
 import { useState } from "react";
 import "./App.css";
 import { analyzeFridgeImage } from "./api";
-import { AD_GROUP_IDS } from "./adConfig";
+import { AD_GROUP_IDS, INTERSTITIAL_SESSION_CAP } from "./adConfig";
 import { pickRandomDemoSet } from "./demoData";
-import { playFullScreenAd } from "./hooks/useFullScreenAd";
+import { playFullScreenAd, preloadFullScreenAd } from "./hooks/useFullScreenAd";
 import { Analyzing } from "./screens/Analyzing";
 import { Home } from "./screens/Home";
 import { RecipeDetail } from "./screens/RecipeDetail";
@@ -15,22 +15,32 @@ type Page = "home" | "analyzing" | "result" | "recipeDetail";
 function App() {
   const [page, setPage] = useState<Page>("home");
   const [imageUri, setImageUri] = useState<string>("");
+  const [imageBase64, setImageBase64] = useState<string>("");
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDemo, setIsDemo] = useState(false);
+  const [interstitialShownCount, setInterstitialShownCount] = useState(0);
   // 방문마다 한 번만 랜덤으로 뽑아서, 홈 미리보기와 실제 체험 화면이 같은 세트를 보여주게 해요.
   const [demoSet] = useState(() => pickRandomDemoSet());
 
   const handleImageSelected = async (base64: string) => {
     setImageUri(`data:image/jpeg;base64,${base64}`);
+    setImageBase64(base64);
     setIsDemo(false);
     setPage("analyzing");
     setErrorMessage("");
 
+    // 세션당 노출 상한 안에 있을 때만, AI 분석과 동시에 미리 로드해서 대기시간을 겹쳐 써요.
+    const willShowInterstitial = interstitialShownCount < INTERSTITIAL_SESSION_CAP;
+    if (willShowInterstitial) preloadFullScreenAd(AD_GROUP_IDS.interstitial);
+
     try {
       const analyzeResult = await analyzeFridgeImage(base64);
-      await playFullScreenAd(AD_GROUP_IDS.interstitial);
+      if (willShowInterstitial) {
+        await playFullScreenAd(AD_GROUP_IDS.interstitial);
+        setInterstitialShownCount((count) => count + 1);
+      }
       setResult(analyzeResult);
       setPage("result");
     } catch {
@@ -41,6 +51,7 @@ function App() {
 
   const handleTryDemo = () => {
     setIsDemo(true);
+    setImageBase64("");
     setResult(demoSet.result);
     setErrorMessage("");
     setPage("result");
@@ -49,6 +60,7 @@ function App() {
   const handleRetake = () => {
     setResult(null);
     setImageUri("");
+    setImageBase64("");
     setIsDemo(false);
     setPage("home");
   };
@@ -63,6 +75,7 @@ function App() {
         result={result}
         isDemo={isDemo}
         demoLabel={demoSet.label}
+        imageBase64={isDemo ? undefined : imageBase64}
         onRetake={handleRetake}
         onSelectRecipe={(recipe) => {
           setSelectedRecipe(recipe);

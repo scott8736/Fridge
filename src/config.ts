@@ -8,3 +8,9 @@ export const API_BASE_URL: string =
 /** 쿠팡파트너스 정책상 반드시 노출해야 하는 수수료 고지 문구예요. 문구를 임의로 바꾸지 마세요. */
 export const COUPANG_PARTNERS_DISCLOSURE =
   "이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.";
+
+/** granite.config.ts의 appName과 반드시 같아야 해요. 공유 링크로 앱을 다시 열 때 쓰는 딥링크예요. */
+export const TOSS_APP_SCHEME = "intoss://moonlighttarot1";
+
+/** 공유 챌린지 이름 */
+export const CHALLENGE_NAME = "냉장고 파먹기 챌린지";

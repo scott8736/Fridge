@@ -1,6 +1,7 @@
 import { Button } from "@toss/tds-mobile";
 import { openURL } from "@apps-in-toss/web-framework";
 import { useState } from "react";
+import { BannerAd } from "../components/BannerAd";
 import { PartnersDisclosure } from "../components/PartnersDisclosure";
 import { getCoupangPartnersLink } from "../api";
 import { getCategoryStyle } from "../foodVisuals";
@@ -86,6 +87,7 @@ export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
         </ol>
       </section>
 
+      <BannerAd variant="expanded" />
       <PartnersDisclosure />
     </div>
   );

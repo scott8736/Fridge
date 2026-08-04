@@ -1,37 +1,66 @@
 import { Button } from "@toss/tds-mobile";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BannerAd } from "../components/BannerAd";
 import { IngredientChip } from "../components/IngredientChip";
 import { PartnersDisclosure } from "../components/PartnersDisclosure";
 import { RecipeCard } from "../components/RecipeCard";
 import { AD_GROUP_IDS } from "../adConfig";
-import { playFullScreenAd } from "../hooks/useFullScreenAd";
+import { fetchMoreRecipes } from "../api";
+import { playFullScreenAd, preloadFullScreenAd } from "../hooks/useFullScreenAd";
+import { shareChallenge } from "../share";
 import type { AnalyzeResult, Recipe } from "../types";
 
 interface ResultProps {
   result: AnalyzeResult;
   isDemo?: boolean;
   demoLabel?: string;
+  /** 실제 분석 사진의 base64예요. 데모 모드에서는 없어요(추가 레시피 재생성에 필요). */
+  imageBase64?: string;
   onSelectRecipe: (recipe: Recipe) => void;
   onRetake: () => void;
 }
 
-export function Result({ result, isDemo, demoLabel, onSelectRecipe, onRetake }: ResultProps) {
+export function Result({ result, isDemo, demoLabel, imageBase64, onSelectRecipe, onRetake }: ResultProps) {
   const [bonusRecipes, setBonusRecipes] = useState<Recipe[]>([]);
   const [loadingBonus, setLoadingBonus] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const allRecipes = [...result.recipes, ...bonusRecipes];
-  const hasMore = bonusRecipes.length === 0 && result.recipes.length > 0;
+  // 데모 화면엔 실제 사진이 없어서 추가 레시피를 새로 생성할 수 없어요 -> 보상형 버튼 자체를 숨겨요.
+  const canWatchAdForMore = !isDemo && !!imageBase64 && bonusRecipes.length === 0 && !!AD_GROUP_IDS.reward;
+
+  useEffect(() => {
+    // 버튼을 누르기 전에 미리 로드해두면, 실제로 누를 때 대기 없이 바로 노출돼요.
+    if (canWatchAdForMore) preloadFullScreenAd(AD_GROUP_IDS.reward);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleWatchAdForMore = async () => {
-    if (!AD_GROUP_IDS.reward || loadingBonus) return;
+    if (!imageBase64 || loadingBonus) return;
     setLoadingBonus(true);
     const { earnedReward } = await playFullScreenAd(AD_GROUP_IDS.reward);
     if (earnedReward) {
-      // 광고 시청 보상으로, 이미 추천된 레시피 목록에서 아직 안 보여준 나머지를 추가로 열어줘요.
-      setBonusRecipes(result.recipes.slice(2));
+      try {
+        const existingNames = result.recipes.map((recipe) => recipe.name);
+        const moreRecipes = await fetchMoreRecipes(imageBase64, existingNames);
+        setBonusRecipes(moreRecipes);
+      } catch {
+        // 추가 추천에 실패해도 화면은 그대로 유지하고, 버튼만 원상복구해요.
+      }
     }
     setLoadingBonus(false);
+  };
+
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await shareChallenge(result.recipes[0]?.name ?? "오늘의 레시피", Boolean(isDemo));
+    } catch {
+      // 토스 앱 밖(브라우저 미리보기 등)에서는 공유 브릿지가 없어서 실패할 수 있어요.
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -57,17 +86,21 @@ export function Result({ result, isDemo, demoLabel, onSelectRecipe, onRetake }: 
         ))}
       </div>
 
-      {hasMore && AD_GROUP_IDS.reward && (
+      {canWatchAdForMore && (
         <Button variant="weak" display="full" size="large" loading={loadingBonus} onClick={handleWatchAdForMore}>
-          🎁 광고 보고 레시피 더보기
+          🎁 광고 보고 새 레시피 더 받기
         </Button>
       )}
+
+      <Button variant="weak" display="full" size="large" loading={sharing} onClick={handleShare}>
+        🧊 냉장고 파먹기 챌린지 공유하기
+      </Button>
 
       <Button variant="weak" display="full" size="large" onClick={onRetake}>
         {isDemo ? "내 냉장고로 직접 해보기" : "다시 촬영하기"}
       </Button>
 
-      <BannerAd />
+      <BannerAd variant="expanded" />
       <PartnersDisclosure />
     </div>
   );

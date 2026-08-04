@@ -1,5 +1,5 @@
 import { createCoupangPartnersLink, type Env as CoupangEnv } from "./coupang";
-import { analyzeFridgeImage } from "./gemini";
+import { analyzeFridgeImage, fetchMoreRecipes } from "./gemini";
 
 export interface Env extends CoupangEnv {}
 
@@ -37,6 +37,21 @@ export default {
         return json(result);
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : "분석에 실패했어요." }, 500);
+      }
+    }
+
+    if (url.pathname === "/api/more-recipes" && request.method === "POST") {
+      try {
+        const { imageBase64, excludeNames } = (await request.json()) as {
+          imageBase64?: string;
+          excludeNames?: string[];
+        };
+        if (!imageBase64) return json({ error: "imageBase64가 필요해요." }, 400);
+
+        const recipes = await fetchMoreRecipes(env, imageBase64, excludeNames ?? []);
+        return json({ recipes });
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : "추가 추천에 실패했어요." }, 500);
       }
     }
 

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./config";
-import type { AnalyzeResult } from "./types";
+import type { AnalyzeResult, Recipe } from "./types";
 
 export class ApiError extends Error {}
 
@@ -18,6 +18,25 @@ export async function analyzeFridgeImage(base64: string): Promise<AnalyzeResult>
   }
 
   return (await res.json()) as AnalyzeResult;
+}
+
+/**
+ * "광고 보고 레시피 더보기" 보상형 광고 시청 후 호출해요.
+ * 같은 사진을 다시 분석해서 이미 추천받은 레시피(excludeNames)와 겹치지 않는 새 레시피를 받아와요.
+ */
+export async function fetchMoreRecipes(base64: string, excludeNames: string[]): Promise<Recipe[]> {
+  const res = await fetch(`${API_BASE_URL}/api/more-recipes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageBase64: base64, excludeNames }),
+  });
+
+  if (!res.ok) {
+    throw new ApiError(`추가 레시피를 가져오지 못했어요. (status: ${res.status})`);
+  }
+
+  const data = (await res.json()) as { recipes: Recipe[] };
+  return data.recipes;
 }
 
 /**
