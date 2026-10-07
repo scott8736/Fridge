@@ -11,3 +11,4 @@ dev.log
 server/.dev.vars
 .env
 .env.local
+tools/watch_backend.log
