@@ -5,11 +5,7 @@
   "vars": {
     "COUPANG_SUB_ID": "tossfridge"
   },
-  // 비밀값: GEMINI_FREE_KEYS(쉼표 구분) · GEMINI_PAID_KEY · COUPANG_ACCESS_KEY · COUPANG_SECRET_KEY
-  "kv_namespaces": [
-    // 유료 Gemini 키 하루 사용량 카운터 (gemini.ts PAID_DAILY_CAP)
-    { "binding": "PAID_USAGE", "id": "29537b22873244e3b76583149d5d9ada" }
-  ],
+  // 비밀값: GEMINI_FREE_KEYS(쉼표 구분, 무료 키만) · COUPANG_ACCESS_KEY · COUPANG_SECRET_KEY
   "ratelimits": [
     // IP당 60초에 30회. 통신사 공유 IP를 고려해 넉넉하게 잡았어요.
     { "name": "RL", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }

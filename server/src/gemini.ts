@@ -1,10 +1,11 @@
+/**
+ * 무료 키만 써요. 유료 키는 일부러 두지 않아요(2026-10-07 결정).
+ * 실측상 유료로 사진 1건 약 14원인데 광고 수익은 건당 2~3원이라, 유료로 넘어가면 그대로 적자예요.
+ * 무료 키가 전부 막히면 실패를 돌려주고, 앱이 예시 레시피를 "예시"라고 밝혀 보여줘요.
+ */
 export interface GeminiEnv {
-  /** 무료 키들, 쉼표로 구분. 먼저 돌려 써요. */
+  /** 무료 키들, 쉼표로 구분 */
   GEMINI_FREE_KEYS?: string;
-  /** 무료 키가 전부 막혔을 때만 쓰는 유료 키 */
-  GEMINI_PAID_KEY?: string;
-  /** 유료 키 하루 사용량 카운터 */
-  PAID_USAGE?: KVNamespace;
 }
 
 export type RecipeCategory = "국물" | "밥/면" | "볶음" | "구이/전" | "반찬" | "디저트/기타";
@@ -36,17 +37,42 @@ export type RecipeSource = { imageBase64: string } | { ingredients: string[] } |
  * - 사진: flash-lite 는 4.5초로 빠르지만 냉장고 밖 캔·스티커를 재료로 지어내서 쓰지 않아요.
  * - 글자(직접 입력·오늘의 메뉴): 재료를 읽을 일이 없으니 빠른 lite 를 먼저 써요.
  * 예전 기본값 gemini-2.5-flash 는 무료 키 대부분에서 막혀 있어요(2026-09-11).
+ *
+ * 생각(thinking) 토큰은 꺼요(thinkingBudget 0). 사진 분석이 13~15초 -> 5~8초로 줄고 재료 인식은 그대로였어요.
+ * - thinkingLevel "minimal" 은 쓰지 마세요: 닫힌 냉장고 사진에 레시피 0개를 돌려준 적이 있어요.
+ * - lite 모델은 원래 생각 토큰이 없고, thinkingBudget 을 넣으면 400 이 나요 -> 넣지 않아요.
  */
 const IMAGE_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
 const TEXT_MODELS = ["gemini-flash-lite-latest", "gemini-3.6-flash", "gemini-flash-latest"];
 
 /** 모델 하나당 시도할 무료 키 개수. 모델 3개 x 2 = 최대 6번. */
 const FREE_KEYS_PER_MODEL = 2;
-/** 유료 키 하루 호출 상한. 넘으면 실패로 돌려보내요(비용 사고 방지). */
-const PAID_DAILY_CAP = 300;
 const ATTEMPT_TIMEOUT_MS = 40_000;
 
 export class GeminiUnavailableError extends Error {}
+
+interface GeminiRequest {
+  contents: unknown[];
+  generationConfig: Record<string, unknown>;
+}
+
+function bodyFor(model: string, request: GeminiRequest): GeminiRequest {
+  if (model.includes("lite")) return request;
+  return {
+    ...request,
+    generationConfig: { ...request.generationConfig, thinkingConfig: { thinkingBudget: 0 } },
+  };
+}
+
+/** 레시피가 하나도 없는 응답은 실패로 보고 다음 키·모델로 다시 시도해요. */
+function hasRecipes(text: string): boolean {
+  try {
+    const parsed = JSON.parse(text) as { recipes?: unknown[] };
+    return Array.isArray(parsed.recipes) && parsed.recipes.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 function freeKeys(env: GeminiEnv): string[] {
   return (env.GEMINI_FREE_KEYS ?? "")
@@ -99,25 +125,11 @@ async function attempt(key: string, model: string, body: unknown): Promise<Attem
   return { ok: true, text };
 }
 
-/** 유료 키를 하루 상한 안에서만 쓰게 해요. KV 가 없으면 유료를 쓰지 않아요. */
-async function reservePaidCall(env: GeminiEnv): Promise<boolean> {
-  if (!env.GEMINI_PAID_KEY || !env.PAID_USAGE) return false;
-  const day = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10); // KST 날짜
-  const counterKey = `paid:${day}`;
-  const used = Number((await env.PAID_USAGE.get(counterKey)) ?? "0");
-  if (used >= PAID_DAILY_CAP) {
-    console.error(`paid cap reached: ${used}/${PAID_DAILY_CAP}`);
-    return false;
-  }
-  await env.PAID_USAGE.put(counterKey, String(used + 1), { expirationTtl: 3 * 86400 });
-  return true;
-}
-
 /**
- * 무료 키를 돌려 쓰다가(모델도 차례로 바꿔가며) 전부 막히면 유료 키로 넘어가요.
+ * 무료 키를 돌려 쓰고(모델도 차례로 바꿔가며), 전부 막히면 실패를 돌려줘요.
  * 키·모델 상태는 로그로만 남기고, 클라이언트에는 원문 오류를 넘기지 않아요.
  */
-async function generateWithFallback(env: GeminiEnv, models: string[], body: unknown): Promise<string> {
+async function generateWithFallback(env: GeminiEnv, models: string[], request: GeminiRequest): Promise<string> {
   const deadKeys = new Set<string>();
   const keys = rotated(freeKeys(env));
   let cursor = 0;
@@ -128,21 +140,15 @@ async function generateWithFallback(env: GeminiEnv, models: string[], body: unkn
       const key = keys[cursor++ % keys.length];
       if (deadKeys.has(key)) continue;
       tried++;
-      const result = await attempt(key, model, body);
-      if (result.ok) return result.text;
+      const result = await attempt(key, model, bodyFor(model, request));
+      if (result.ok) {
+        if (hasRecipes(result.text)) return result.text;
+        console.warn(`gemini ${model} -> 레시피 없는 응답, 다시 시도`);
+        continue;
+      }
       if (result.reason === "key") deadKeys.add(key);
       if (result.reason === "model") break;
     }
-  }
-
-  for (const model of models.slice(0, 2)) {
-    if (!(await reservePaidCall(env))) break;
-    const result = await attempt(env.GEMINI_PAID_KEY!, model, body);
-    if (result.ok) {
-      console.log(`paid fallback used: ${model}`);
-      return result.text;
-    }
-    if (result.reason === "key") break;
   }
 
   throw new GeminiUnavailableError("모든 Gemini 키·모델이 응답하지 않았어요.");
@@ -150,24 +156,22 @@ async function generateWithFallback(env: GeminiEnv, models: string[], body: unkn
 
 /**
  * 점검용: 무료 키마다 사진용 첫 모델로 아주 짧게 호출해 몇 개가 살아 있는지 세요.
- * 유료 키도 한 번 확인해요(상한 카운터는 쓰지 않음).
  */
 export async function checkGeminiKeys(env: GeminiEnv) {
-  const body = {
-    contents: [{ parts: [{ text: "OK 한 단어만 답해주세요." }] }],
-    generationConfig: { maxOutputTokens: 5 },
-  };
   const model = IMAGE_MODELS[0];
+  // 실제 요청과 같이 생각 토큰을 꺼요. 켜 두면 짧은 출력 한도를 생각에 다 써서 빈 응답이 와요.
+  const body = bodyFor(model, {
+    contents: [{ parts: [{ text: "OK 한 단어만 답해주세요." }] }],
+    generationConfig: { maxOutputTokens: 20 },
+  });
   const results = await Promise.all(freeKeys(env).map((key) => attempt(key, model, body)));
   const freeOk = results.filter((r) => r.ok).length;
-  const paidOk = env.GEMINI_PAID_KEY ? (await attempt(env.GEMINI_PAID_KEY, model, body)).ok : false;
   return {
-    ok: freeOk > 0 || paidOk,
+    ok: freeOk > 0,
     model,
     freeOk,
     freeTotal: results.length,
-    freeStatuses: results.map((r) => (r.ok ? 200 : r.status)),
-    paidOk,
+    freeStatuses: results.map((r) => (r.ok ? "ok" : r.status === 200 ? "empty" : r.status)),
   };
 }
 
@@ -202,7 +206,8 @@ const RECIPE_ITEM_SCHEMA = {
 const RECIPE_FIELD_GUIDE = `prepNotes에는 재료 손질법을, steps에는 조리 순서를 실제 조리가 가능할 만큼 구체적으로 한국어로 작성해주세요.
 cookTimeMinutes는 예상 조리 시간(분)이에요.
 category는 요리를 가장 잘 나타내는 분류 하나를 "국물", "밥/면", "볶음", "구이/전", "반찬", "디저트/기타" 중에서 골라주세요.
-emoji는 그 요리를 대표하는 이모지를 정확히 1개만 골라주세요 (예: 김치찌개 -> 🍲, 계란볶음밥 -> 🍳).`;
+emoji는 그 요리를 대표하는 이모지를 정확히 1개만 골라주세요 (예: 김치찌개 -> 🍲, 계란볶음밥 -> 🍳).
+레시피 이름과 설명에 실존 인물·요리사·식당·상표 이름을 넣지 마세요 (예: "백종원표" 같은 표현 금지).`;
 
 const RECIPES_ONLY_SCHEMA = {
   type: "OBJECT",
@@ -222,7 +227,7 @@ async function callGemini(
   const parts: Record<string, unknown>[] = [{ text: prompt }];
   if (imageBase64) parts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
 
-  const body = {
+  const request: GeminiRequest = {
     contents: [{ parts }],
     generationConfig: {
       responseMimeType: "application/json",
@@ -231,7 +236,7 @@ async function callGemini(
     },
   };
 
-  return generateWithFallback(env, imageBase64 ? IMAGE_MODELS : TEXT_MODELS, body);
+  return generateWithFallback(env, imageBase64 ? IMAGE_MODELS : TEXT_MODELS, request);
 }
 
 function toRecipes(text: string): Recipe[] {

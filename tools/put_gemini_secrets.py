@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""D:\\00 cloud\\gemi.env 의 키를 Worker 비밀값(GEMINI_FREE_KEYS·GEMINI_PAID_KEY)으로 넣는다.
+"""D:\\00 cloud\\gemi.env 의 무료 키를 Worker 비밀값 GEMINI_FREE_KEYS 로 넣는다.
+유료 키는 넣지 않는다(유료 1건이 광고 수익보다 커서 적자, 2026-10-07 결정).
 키 값은 화면에 출력하지 않는다. 등록 뒤 `cd server && npx wrangler deploy` 로 배포한다.
 
     python tools/put_gemini_secrets.py
@@ -24,13 +25,10 @@ def put(name, value):
 
 
 def main():
-    free, paid = load_keys()
+    free, _ = load_keys()
     free_ok = [k for i, k in enumerate(free) if i not in DEAD_FREE]
     print("무료 키 %d개 (전체 %d개 중 죽은 키 %d개 제외)" % (len(free_ok), len(free), len(DEAD_FREE)))
-    ok = put("GEMINI_FREE_KEYS", ",".join(free_ok))
-    if paid:
-        ok = put("GEMINI_PAID_KEY", paid[0]) and ok
-    return 0 if ok else 1
+    return 0 if put("GEMINI_FREE_KEYS", ",".join(free_ok)) else 1
 
 
 if __name__ == "__main__":

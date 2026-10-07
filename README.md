@@ -13,8 +13,7 @@
 cd server
 npm install
 npx wrangler login          # 최초 1회, Cloudflare 계정 로그인
-npx wrangler secret put GEMINI_FREE_KEYS   # 무료 키 여러 개, 쉼표로 구분 (먼저 돌려 씀)
-npx wrangler secret put GEMINI_PAID_KEY    # 무료가 전부 막혔을 때만, 하루 300회 상한
+npx wrangler secret put GEMINI_FREE_KEYS   # 무료 키 여러 개, 쉼표로 구분 (python tools/put_gemini_secrets.py)
 npx wrangler secret put COUPANG_ACCESS_KEY
 npx wrangler secret put COUPANG_SECRET_KEY
 npm run deploy
@@ -22,6 +21,9 @@ npm run deploy
 
 로컬 개발 시에는 `server/.dev.vars`(git에 커밋되지 않아요)에 키를 넣고 `npm run dev`로 실행하세요.
 형식은 `server/.dev.vars.example` 참고.
+
+유료 키는 쓰지 않아요 — 유료 사진 분석 1건(약 14원)이 광고 수익(건당 2~3원)보다 커서 적자예요.
+무료 키가 전부 막히면 앱이 예시 레시피를 보여줘요.
 
 배포 후 `GET /api/health/deep` 으로 Gemini 키가 실제로 응답하는지 확인하세요.
 `/api/health` 는 Worker 가 떠 있는지만 봐서, 키가 죽어도 ok 를 줘요(2026-08~10 두 달간 이걸로 고장을 못 봤어요).

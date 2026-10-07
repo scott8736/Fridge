@@ -38,13 +38,11 @@ def judge(status, data):
     if status == 0:
         return True, "Worker에 접속하지 못했습니다(%s)." % data.get("error")
     if status != 200 or not data.get("ok"):
-        return True, "Gemini 호출이 전부 실패합니다(HTTP %s). 앱 추천이 모두 예시 화면으로 나갑니다." % status
-    free_ok, total, paid_ok = data.get("freeOk", 0), data.get("freeTotal", 0), data.get("paidOk")
-    if free_ok == 0:
-        return True, "무료 키가 전부 막혀 유료 키로만 돌고 있습니다(하루 300회 상한)."
+        return True, "무료 키가 전부 막혔습니다(HTTP %s). 앱 추천이 모두 예시 화면으로 나갑니다. gemi.env 키를 점검하세요." % status
+    free_ok, total = data.get("freeOk", 0), data.get("freeTotal", 0)
     if free_ok < FREE_WARN_BELOW:
         return True, "살아 있는 무료 키가 %d/%d개뿐입니다. gemi.env 키 점검이 필요합니다." % (free_ok, total)
-    return False, "정상: 무료 키 %d/%d, 유료 %s, 모델 %s" % (free_ok, total, "ok" if paid_ok else "X", data.get("model"))
+    return False, "정상: 무료 키 %d/%d, 모델 %s" % (free_ok, total, data.get("model"))
 
 
 def main():
