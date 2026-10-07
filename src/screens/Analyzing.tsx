@@ -1,8 +1,10 @@
+import type { AdNotice } from "../App";
 import type { AnalysisSource } from "../types";
 
 interface AnalyzingProps {
   imageUri: string;
   sourceType: AnalysisSource["type"];
+  adNotice: AdNotice;
 }
 
 const COPY: Record<AnalysisSource["type"], { title: string; desc: string }> = {
@@ -11,7 +13,7 @@ const COPY: Record<AnalysisSource["type"], { title: string; desc: string }> = {
   today: { title: "오늘의 메뉴를 고르고 있어요", desc: "오늘 먹기 좋은 메뉴를 찾는 중이에요." },
 };
 
-export function Analyzing({ imageUri, sourceType }: AnalyzingProps) {
+export function Analyzing({ imageUri, sourceType, adNotice }: AnalyzingProps) {
   const copy = COPY[sourceType];
   return (
     <div className="screen screen-center">
@@ -29,6 +31,14 @@ export function Analyzing({ imageUri, sourceType }: AnalyzingProps) {
         {copy.desc}
         {"\n"}잠시만 기다려주세요.
       </p>
+      {adNotice === "after" && (
+        <p className="analyzing-ad-notice">분석이 끝나면 짧은 광고를 본 뒤{"\n"}추천 레시피를 보여드려요.</p>
+      )}
+      {adNotice === "soon" && (
+        <p className="analyzing-ad-notice analyzing-ad-notice-soon">
+          분석 완료! 곧 광고가 재생돼요.{"\n"}광고가 끝나면 레시피를 보여드려요.
+        </p>
+      )}
     </div>
   );
 }

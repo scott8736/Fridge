@@ -4,15 +4,11 @@ import type { Recipe } from "../types";
 interface FavoritesProps {
   favorites: Recipe[];
   onSelectRecipe: (recipe: Recipe) => void;
-  onBack: () => void;
 }
 
-export function Favorites({ favorites, onSelectRecipe, onBack }: FavoritesProps) {
+export function Favorites({ favorites, onSelectRecipe }: FavoritesProps) {
   return (
     <div className="screen">
-      <button type="button" className="back-button" onClick={onBack}>
-        ← 홈으로
-      </button>
 
       <p className="recipe-detail-title">즐겨찾기</p>
 

@@ -91,6 +91,7 @@ export function Home({
         <Button variant="weak" display="full" size="xlarge" onClick={onTodayMenu}>
           🍽 오늘 뭐 먹지 추천받기
         </Button>
+        <p className="home-ad-hint">AI 추천 결과를 보여드리기 전에 짧은 광고가 나올 수 있어요.</p>
       </div>
 
       <div className="home-links">

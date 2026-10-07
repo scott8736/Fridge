@@ -5,17 +5,13 @@ import type { Recipe } from "../types";
 interface HistoryProps {
   entries: HistoryEntry[];
   onSelectRecipe: (recipe: Recipe) => void;
-  onBack: () => void;
 }
 
-export function History({ entries, onSelectRecipe, onBack }: HistoryProps) {
+export function History({ entries, onSelectRecipe }: HistoryProps) {
   const groups = groupHistoryByDate(entries);
 
   return (
     <div className="screen">
-      <button type="button" className="back-button" onClick={onBack}>
-        ← 홈으로
-      </button>
 
       <p className="recipe-detail-title">지난 기록</p>
 

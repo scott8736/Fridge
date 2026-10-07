@@ -11,10 +11,9 @@ import type { Recipe } from "../types";
 
 interface RecipeDetailProps {
   recipe: Recipe;
-  onBack: () => void;
 }
 
-export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
+export function RecipeDetail({ recipe }: RecipeDetailProps) {
   const [loadingKeyword, setLoadingKeyword] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const style = getCategoryStyle(recipe.category);
@@ -51,9 +50,6 @@ export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
   return (
     <div className="screen">
       <div className="recipe-detail-top-row">
-        <button type="button" className="back-button" onClick={onBack}>
-          ← 목록으로
-        </button>
         <button
           type="button"
           className={`favorite-toggle ${isFavorite ? "favorite-toggle-active" : ""}`}

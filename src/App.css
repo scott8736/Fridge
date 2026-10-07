@@ -172,6 +172,31 @@
   margin: 0;
 }
 
+.analyzing-ad-notice {
+  margin: 20px 0 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f2f4f6;
+  color: #4e5968;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.analyzing-ad-notice-soon {
+  background: #e8f3ff;
+  color: #1b64da;
+  font-weight: 600;
+}
+
+.home-ad-hint {
+  margin: -4px 0 0;
+  color: #8b95a1;
+  font-size: 12px;
+  text-align: center;
+}
+
 .history-empty {
   color: #8b95a1;
   font-size: 14px;
@@ -353,7 +378,7 @@
 .recipe-detail-top-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
 .favorite-toggle {
@@ -371,18 +396,6 @@
 .favorite-toggle-active {
   background: #fff2d9;
   color: #b16a00;
-}
-
-.back-button {
-  align-self: flex-start;
-  border: none;
-  background: none;
-  color: #4e5968;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 0;
-  cursor: pointer;
-  font-family: inherit;
 }
 
 .recipe-hero {

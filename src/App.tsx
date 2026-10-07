@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { closeView, graniteEvent } from "@apps-in-toss/web-framework";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { analyzeFridgeImage, analyzeIngredients, recommendTodayMenu } from "./api";
 import { logClick, logImpression, logScreen } from "./analytics";
@@ -18,6 +19,12 @@ import type { AnalysisSource, AnalyzeResult, Recipe } from "./types";
 
 type Page = "home" | "analyzing" | "result" | "recipeDetail" | "history" | "favorites" | "manualInput";
 type RecipeDetailOrigin = "result" | "history" | "favorites";
+/** 분석 화면에서 보여줄 광고 안내 단계: 없음 / 끝나면 광고가 나온다는 예고 / 곧 광고 재생 */
+export type AdNotice = "none" | "after" | "soon";
+
+/** 광고 직전 예고를 보여주는 시간. 사용자가 "곧 광고"를 읽을 수 있을 만큼만 둬요. */
+const AD_NOTICE_MS = 1500;
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function App() {
   const [page, setPage] = useState<Page>("home");
@@ -31,6 +38,7 @@ function App() {
   /** AI 분석이 실패해서 예시 레시피로 대신 보여주는 중인지 */
   const [isFallback, setIsFallback] = useState(false);
   const [interstitialShownCount, setInterstitialShownCount] = useState(0);
+  const [adNotice, setAdNotice] = useState<AdNotice>("none");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [favorites, setFavorites] = useState<Recipe[]>([]);
   // 방문마다 한 번만 랜덤으로 뽑아서, 홈 미리보기와 실제 체험 화면이 같은 세트를 보여주게 해요.
@@ -45,6 +53,38 @@ function App() {
     logScreen(`screen_${page}`);
   }, [page]);
 
+  const handleBack = () => {
+    switch (page) {
+      case "analyzing":
+        // 분석·광고 대기 중에는 흐름이 꼬이지 않게 무시해요.
+        return;
+      case "recipeDetail":
+        if (recipeDetailFrom === "favorites") loadFavorites().then(setFavorites);
+        setPage(recipeDetailFrom);
+        return;
+      case "result":
+        handleRetake();
+        return;
+      case "home":
+        closeView();
+        return;
+      default:
+        setPage("home");
+    }
+  };
+  // 구독은 한 번만 하고, 최신 화면 상태는 ref 로 읽어요.
+  const backRef = useRef(handleBack);
+  backRef.current = handleBack;
+
+  useEffect(() => {
+    try {
+      return graniteEvent.addEventListener("backEvent", { onEvent: () => backRef.current() });
+    } catch {
+      // 토스 앱 밖(로컬 브라우저)에서는 구독할 수 없어요.
+      return undefined;
+    }
+  }, []);
+
   const runAnalysis = async (source: AnalysisSource, run: () => Promise<AnalyzeResult>) => {
     setSource(source);
     setIsDemo(false);
@@ -55,6 +95,7 @@ function App() {
 
     // 세션당 노출 상한 안에 있을 때만, AI 분석과 동시에 미리 로드해서 대기시간을 겹쳐 써요.
     const willShowInterstitial = interstitialShownCount < INTERSTITIAL_SESSION_CAP;
+    setAdNotice(willShowInterstitial ? "after" : "none");
     if (willShowInterstitial) preloadFullScreenAd(AD_GROUP_IDS.interstitial);
 
     try {
@@ -65,6 +106,9 @@ function App() {
         recipes: analyzeResult.recipes.length,
       });
       if (willShowInterstitial) {
+        // 갑자기 광고가 뜨지 않게, 재생 직전에 "곧 광고가 나와요"를 잠깐 보여줘요.
+        setAdNotice("soon");
+        await wait(AD_NOTICE_MS);
         // 광고 노출이 실패해도 레시피 추천 자체는 반드시 이어져야 해요.
         try {
           await playFullScreenAd(AD_GROUP_IDS.interstitial);
@@ -73,11 +117,13 @@ function App() {
         }
         setInterstitialShownCount((count) => count + 1);
       }
+      setAdNotice("none");
       setResult(analyzeResult);
       setPage("result");
       addHistoryEntry(analyzeResult).then(setHistory);
     } catch {
       // 빈손으로 홈에 돌려보내지 않고, 예시 레시피를 "예시"라고 밝힌 채 보여줘요.
+      setAdNotice("none");
       logImpression("analysis_fail", { source: source.type, seconds: Math.round((Date.now() - startedAt) / 1000) });
       setIsDemo(true);
       setIsFallback(true);
@@ -132,11 +178,11 @@ function App() {
   };
 
   if (page === "analyzing") {
-    return <Analyzing imageUri={imageUri} sourceType={source?.type ?? "image"} />;
+    return <Analyzing imageUri={imageUri} sourceType={source?.type ?? "image"} adNotice={adNotice} />;
   }
 
   if (page === "manualInput") {
-    return <ManualInput onSubmit={handleManualSubmit} onBack={() => setPage("home")} />;
+    return <ManualInput onSubmit={handleManualSubmit} />;
   }
 
   if (page === "result" && result) {
@@ -157,7 +203,6 @@ function App() {
     return (
       <History
         entries={history}
-        onBack={() => setPage("home")}
         onSelectRecipe={(recipe) => goToRecipeDetail(recipe, "history")}
       />
     );
@@ -167,7 +212,6 @@ function App() {
     return (
       <Favorites
         favorites={favorites}
-        onBack={() => setPage("home")}
         onSelectRecipe={(recipe) => goToRecipeDetail(recipe, "favorites")}
       />
     );
@@ -175,13 +219,7 @@ function App() {
 
   if (page === "recipeDetail" && selectedRecipe) {
     return (
-      <RecipeDetail
-        recipe={selectedRecipe}
-        onBack={() => {
-          if (recipeDetailFrom === "favorites") loadFavorites().then(setFavorites);
-          setPage(recipeDetailFrom);
-        }}
-      />
+      <RecipeDetail recipe={selectedRecipe} />
     );
   }
 

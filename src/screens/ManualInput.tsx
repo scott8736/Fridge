@@ -4,10 +4,9 @@ import { IngredientChip } from "../components/IngredientChip";
 
 interface ManualInputProps {
   onSubmit: (ingredients: string[]) => void;
-  onBack: () => void;
 }
 
-export function ManualInput({ onSubmit, onBack }: ManualInputProps) {
+export function ManualInput({ onSubmit }: ManualInputProps) {
   const [draft, setDraft] = useState("");
   const [ingredients, setIngredients] = useState<string[]>([]);
 
@@ -30,9 +29,6 @@ export function ManualInput({ onSubmit, onBack }: ManualInputProps) {
 
   return (
     <div className="screen">
-      <button type="button" className="back-button" onClick={onBack}>
-        ← 홈으로
-      </button>
 
       <Top
         title={<Top.TitleParagraph size={22}>냉장고에 있는 재료를{"\n"}적어주세요</Top.TitleParagraph>}
