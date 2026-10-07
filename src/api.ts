@@ -3,12 +3,24 @@ import type { AnalyzeResult, AnalysisSource, Recipe } from "./types";
 
 export class ApiError extends Error {}
 
+/** 서버가 키·모델을 차례로 바꿔 시도해도 이 안에 끝나요. 넘으면 실패로 보고 예시 레시피를 보여줘요. */
+const REQUEST_TIMEOUT_MS = 75_000;
+
 async function postJson<T>(path: string, body: unknown, errorMessage: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  // AbortSignal.timeout 은 구형 iOS 웹뷰에 없어서 직접 타이머를 걸어요.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     throw new ApiError(`${errorMessage} (status: ${res.status})`);

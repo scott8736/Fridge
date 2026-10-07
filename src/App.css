@@ -123,6 +123,23 @@
   filter: brightness(0.6);
 }
 
+.analyzing-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 96px;
+  background: #e8f9f1;
+}
+
+.fallback-banner {
+  background: #fdecec;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
 .analyzing-spinner {
   position: absolute;
   inset: 0;

@@ -1,3 +1,4 @@
-GEMINI_API_KEY=your-gemini-api-key
+GEMINI_FREE_KEYS=free-key-1,free-key-2,free-key-3
+GEMINI_PAID_KEY=paid-key-used-only-when-all-free-keys-fail
 COUPANG_ACCESS_KEY=your-coupang-open-api-access-key
 COUPANG_SECRET_KEY=your-coupang-open-api-secret-key

@@ -1,5 +1,4 @@
 export interface Env {
-  GEMINI_API_KEY: string;
   COUPANG_ACCESS_KEY: string;
   COUPANG_SECRET_KEY: string;
   COUPANG_SUB_ID?: string;

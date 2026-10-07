@@ -6,6 +6,7 @@ import { PartnersDisclosure } from "../components/PartnersDisclosure";
 import { RecipeCard } from "../components/RecipeCard";
 import { AD_GROUP_IDS } from "../adConfig";
 import { fetchMoreRecipes } from "../api";
+import { logClick } from "../analytics";
 import { playFullScreenAd, preloadFullScreenAd } from "../hooks/useFullScreenAd";
 import { shareChallenge } from "../share";
 import type { AnalysisSource, AnalyzeResult, Recipe } from "../types";
@@ -13,6 +14,8 @@ import type { AnalysisSource, AnalyzeResult, Recipe } from "../types";
 interface ResultProps {
   result: AnalyzeResult;
   isDemo?: boolean;
+  /** AI 분석이 실패해서 예시 레시피를 대신 보여주는 중이에요. */
+  isFallback?: boolean;
   demoLabel?: string;
   /** 이번 추천의 출처예요. 데모 모드에서는 없어요(추가 레시피 재생성에 필요). */
   source?: AnalysisSource;
@@ -20,7 +23,7 @@ interface ResultProps {
   onRetake: () => void;
 }
 
-export function Result({ result, isDemo, demoLabel, source, onSelectRecipe, onRetake }: ResultProps) {
+export function Result({ result, isDemo, isFallback, demoLabel, source, onSelectRecipe, onRetake }: ResultProps) {
   const [bonusRecipes, setBonusRecipes] = useState<Recipe[]>([]);
   const [loadingBonus, setLoadingBonus] = useState(false);
   const [bonusError, setBonusError] = useState(false);
@@ -38,6 +41,7 @@ export function Result({ result, isDemo, demoLabel, source, onSelectRecipe, onRe
 
   const handleWatchAdForMore = async () => {
     if (!source || loadingBonus) return;
+    logClick("reward_more", { source: source.type });
     setLoadingBonus(true);
     setBonusError(false);
     try {
@@ -57,6 +61,7 @@ export function Result({ result, isDemo, demoLabel, source, onSelectRecipe, onRe
 
   const handleShare = async () => {
     if (sharing) return;
+    logClick("share_challenge", { demo: Boolean(isDemo) });
     setSharing(true);
     try {
       await shareChallenge(result.recipes[0]?.name ?? "오늘의 레시피", Boolean(isDemo));
@@ -69,12 +74,18 @@ export function Result({ result, isDemo, demoLabel, source, onSelectRecipe, onRe
 
   return (
     <div className="screen">
-      {isDemo && (
+      {isFallback && (
+        <div className="fallback-banner">
+          지금 AI 연결이 원활하지 않아 예시 레시피를 보여드려요. 잠시 후 다시 시도해주세요.
+        </div>
+      )}
+      {isDemo && !isFallback && (
         <div className="demo-banner">
           👀 "{demoLabel}" 예시 화면이에요. 실제로는 내 냉장고 사진으로 분석해드려요.
         </div>
       )}
-      {result.ingredients.length > 0 && (
+      {/* 실패 대체 화면에서는 사용자가 준 적 없는 재료를 "찾았다"고 말하지 않아요. */}
+      {!isFallback && result.ingredients.length > 0 && (
         <div className="result-header">
           <p className="result-title">이런 재료를 찾았어요</p>
           <div className="ingredient-list">
@@ -106,7 +117,7 @@ export function Result({ result, isDemo, demoLabel, source, onSelectRecipe, onRe
       </Button>
 
       <Button variant="weak" display="full" size="large" onClick={onRetake}>
-        {isDemo ? "내 냉장고로 직접 해보기" : "다시 시작하기"}
+        {isFallback ? "다시 시도하기" : isDemo ? "내 냉장고로 직접 해보기" : "다시 시작하기"}
       </Button>
 
       <BannerAd variant="expanded" />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import { analyzeFridgeImage, analyzeIngredients, recommendTodayMenu } from "./api";
+import { logClick, logImpression, logScreen } from "./analytics";
 import { AD_GROUP_IDS, INTERSTITIAL_SESSION_CAP } from "./adConfig";
 import { pickRandomDemoSet } from "./demoData";
 import { loadFavorites } from "./favorites";
@@ -27,6 +28,8 @@ function App() {
   const [recipeDetailFrom, setRecipeDetailFrom] = useState<RecipeDetailOrigin>("result");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDemo, setIsDemo] = useState(false);
+  /** AI 분석이 실패해서 예시 레시피로 대신 보여주는 중인지 */
+  const [isFallback, setIsFallback] = useState(false);
   const [interstitialShownCount, setInterstitialShownCount] = useState(0);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [favorites, setFavorites] = useState<Recipe[]>([]);
@@ -38,10 +41,16 @@ function App() {
     loadFavorites().then(setFavorites);
   }, []);
 
+  useEffect(() => {
+    logScreen(`screen_${page}`);
+  }, [page]);
+
   const runAnalysis = async (source: AnalysisSource, run: () => Promise<AnalyzeResult>) => {
     setSource(source);
     setIsDemo(false);
+    setIsFallback(false);
     setPage("analyzing");
+    const startedAt = Date.now();
     setErrorMessage("");
 
     // 세션당 노출 상한 안에 있을 때만, AI 분석과 동시에 미리 로드해서 대기시간을 겹쳐 써요.
@@ -50,6 +59,11 @@ function App() {
 
     try {
       const analyzeResult = await run();
+      logImpression("analysis_success", {
+        source: source.type,
+        seconds: Math.round((Date.now() - startedAt) / 1000),
+        recipes: analyzeResult.recipes.length,
+      });
       if (willShowInterstitial) {
         // 광고 노출이 실패해도 레시피 추천 자체는 반드시 이어져야 해요.
         try {
@@ -63,28 +77,38 @@ function App() {
       setPage("result");
       addHistoryEntry(analyzeResult).then(setHistory);
     } catch {
-      setErrorMessage("레시피를 추천받지 못했어요. 다시 시도해주세요.");
-      setPage("home");
+      // 빈손으로 홈에 돌려보내지 않고, 예시 레시피를 "예시"라고 밝힌 채 보여줘요.
+      logImpression("analysis_fail", { source: source.type, seconds: Math.round((Date.now() - startedAt) / 1000) });
+      setIsDemo(true);
+      setIsFallback(true);
+      setSource(null);
+      setResult(demoSet.result);
+      setPage("result");
     }
   };
 
   const handleImageSelected = (base64: string) => {
+    logClick("start_analysis", { source: "image" });
     setImageUri(`data:image/jpeg;base64,${base64}`);
     runAnalysis({ type: "image", base64 }, () => analyzeFridgeImage(base64));
   };
 
   const handleManualSubmit = (ingredients: string[]) => {
+    logClick("start_analysis", { source: "text", count: ingredients.length });
     setImageUri("");
     runAnalysis({ type: "text", ingredients }, () => analyzeIngredients(ingredients));
   };
 
   const handleTodayMenu = () => {
+    logClick("start_analysis", { source: "today" });
     setImageUri("");
     runAnalysis({ type: "today" }, () => recommendTodayMenu());
   };
 
   const handleTryDemo = () => {
+    logClick("try_demo");
     setIsDemo(true);
+    setIsFallback(false);
     setSource(null);
     setResult(demoSet.result);
     setErrorMessage("");
@@ -96,17 +120,19 @@ function App() {
     setImageUri("");
     setSource(null);
     setIsDemo(false);
+    setIsFallback(false);
     setPage("home");
   };
 
   const goToRecipeDetail = (recipe: Recipe, from: RecipeDetailOrigin) => {
+    logClick("open_recipe", { from, demo: isDemo });
     setSelectedRecipe(recipe);
     setRecipeDetailFrom(from);
     setPage("recipeDetail");
   };
 
   if (page === "analyzing") {
-    return <Analyzing imageUri={imageUri} />;
+    return <Analyzing imageUri={imageUri} sourceType={source?.type ?? "image"} />;
   }
 
   if (page === "manualInput") {
@@ -118,6 +144,7 @@ function App() {
       <Result
         result={result}
         isDemo={isDemo}
+        isFallback={isFallback}
         demoLabel={demoSet.label}
         source={isDemo ? undefined : (source ?? undefined)}
         onRetake={handleRetake}

@@ -1,5 +1,10 @@
 export interface GeminiEnv {
-  GEMINI_API_KEY: string;
+  /** 무료 키들, 쉼표로 구분. 먼저 돌려 써요. */
+  GEMINI_FREE_KEYS?: string;
+  /** 무료 키가 전부 막혔을 때만 쓰는 유료 키 */
+  GEMINI_PAID_KEY?: string;
+  /** 유료 키 하루 사용량 카운터 */
+  PAID_USAGE?: KVNamespace;
 }
 
 export type RecipeCategory = "국물" | "밥/면" | "볶음" | "구이/전" | "반찬" | "디저트/기타";
@@ -26,7 +31,145 @@ export interface AnalyzeResult {
 /** 레시피 재생성(더보기)에 쓰는 맥락. 빈 객체면 특정 재료 제약 없는 "오늘의 메뉴" 추천이에요. */
 export type RecipeSource = { imageBase64: string } | { ingredients: string[] } | Record<string, never>;
 
-const MODEL = "gemini-2.5-flash";
+/**
+ * 2026-10-07 무료 키로 실측한 순서예요. listModels 목록은 믿지 말고 실제 호출로 고를 것.
+ * - 사진: flash-lite 는 4.5초로 빠르지만 냉장고 밖 캔·스티커를 재료로 지어내서 쓰지 않아요.
+ * - 글자(직접 입력·오늘의 메뉴): 재료를 읽을 일이 없으니 빠른 lite 를 먼저 써요.
+ * 예전 기본값 gemini-2.5-flash 는 무료 키 대부분에서 막혀 있어요(2026-09-11).
+ */
+const IMAGE_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+const TEXT_MODELS = ["gemini-flash-lite-latest", "gemini-3.6-flash", "gemini-flash-latest"];
+
+/** 모델 하나당 시도할 무료 키 개수. 모델 3개 x 2 = 최대 6번. */
+const FREE_KEYS_PER_MODEL = 2;
+/** 유료 키 하루 호출 상한. 넘으면 실패로 돌려보내요(비용 사고 방지). */
+const PAID_DAILY_CAP = 300;
+const ATTEMPT_TIMEOUT_MS = 40_000;
+
+export class GeminiUnavailableError extends Error {}
+
+function freeKeys(env: GeminiEnv): string[] {
+  return (env.GEMINI_FREE_KEYS ?? "")
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean);
+}
+
+/** 매 요청마다 시작 키를 무작위로 골라 한 키에 몰리지 않게 해요. */
+function rotated<T>(items: T[]): T[] {
+  if (items.length === 0) return items;
+  const start = Math.floor(Math.random() * items.length);
+  return [...items.slice(start), ...items.slice(0, start)];
+}
+
+type AttemptResult =
+  | { ok: true; text: string }
+  | { ok: false; reason: "key" | "model" | "transient"; status: number };
+
+async function attempt(key: string, model: string, body: unknown): Promise<AttemptResult> {
+  let res: Response;
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, reason: "transient", status: 0 };
+  }
+
+  if (!res.ok) {
+    const detail = await res.text();
+    // 키 값이 아니라 상태만 남겨요.
+    console.warn(`gemini ${model} -> ${res.status} ${detail.slice(0, 120).replace(/\s+/g, " ")}`);
+    if (res.status === 404) return { ok: false, reason: "model", status: res.status };
+    if (res.status === 400 && !detail.includes("API_KEY_INVALID")) {
+      return { ok: false, reason: "model", status: res.status };
+    }
+    if ([400, 401, 403, 429].includes(res.status)) return { ok: false, reason: "key", status: res.status };
+    return { ok: false, reason: "transient", status: res.status };
+  }
+
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) return { ok: false, reason: "transient", status: 200 };
+  return { ok: true, text };
+}
+
+/** 유료 키를 하루 상한 안에서만 쓰게 해요. KV 가 없으면 유료를 쓰지 않아요. */
+async function reservePaidCall(env: GeminiEnv): Promise<boolean> {
+  if (!env.GEMINI_PAID_KEY || !env.PAID_USAGE) return false;
+  const day = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10); // KST 날짜
+  const counterKey = `paid:${day}`;
+  const used = Number((await env.PAID_USAGE.get(counterKey)) ?? "0");
+  if (used >= PAID_DAILY_CAP) {
+    console.error(`paid cap reached: ${used}/${PAID_DAILY_CAP}`);
+    return false;
+  }
+  await env.PAID_USAGE.put(counterKey, String(used + 1), { expirationTtl: 3 * 86400 });
+  return true;
+}
+
+/**
+ * 무료 키를 돌려 쓰다가(모델도 차례로 바꿔가며) 전부 막히면 유료 키로 넘어가요.
+ * 키·모델 상태는 로그로만 남기고, 클라이언트에는 원문 오류를 넘기지 않아요.
+ */
+async function generateWithFallback(env: GeminiEnv, models: string[], body: unknown): Promise<string> {
+  const deadKeys = new Set<string>();
+  const keys = rotated(freeKeys(env));
+  let cursor = 0;
+
+  for (const model of models) {
+    let tried = 0;
+    while (tried < FREE_KEYS_PER_MODEL && deadKeys.size < keys.length) {
+      const key = keys[cursor++ % keys.length];
+      if (deadKeys.has(key)) continue;
+      tried++;
+      const result = await attempt(key, model, body);
+      if (result.ok) return result.text;
+      if (result.reason === "key") deadKeys.add(key);
+      if (result.reason === "model") break;
+    }
+  }
+
+  for (const model of models.slice(0, 2)) {
+    if (!(await reservePaidCall(env))) break;
+    const result = await attempt(env.GEMINI_PAID_KEY!, model, body);
+    if (result.ok) {
+      console.log(`paid fallback used: ${model}`);
+      return result.text;
+    }
+    if (result.reason === "key") break;
+  }
+
+  throw new GeminiUnavailableError("모든 Gemini 키·모델이 응답하지 않았어요.");
+}
+
+/**
+ * 점검용: 무료 키마다 사진용 첫 모델로 아주 짧게 호출해 몇 개가 살아 있는지 세요.
+ * 유료 키도 한 번 확인해요(상한 카운터는 쓰지 않음).
+ */
+export async function checkGeminiKeys(env: GeminiEnv) {
+  const body = {
+    contents: [{ parts: [{ text: "OK 한 단어만 답해주세요." }] }],
+    generationConfig: { maxOutputTokens: 5 },
+  };
+  const model = IMAGE_MODELS[0];
+  const results = await Promise.all(freeKeys(env).map((key) => attempt(key, model, body)));
+  const freeOk = results.filter((r) => r.ok).length;
+  const paidOk = env.GEMINI_PAID_KEY ? (await attempt(env.GEMINI_PAID_KEY, model, body)).ok : false;
+  return {
+    ok: freeOk > 0 || paidOk,
+    model,
+    freeOk,
+    freeTotal: results.length,
+    freeStatuses: results.map((r) => (r.ok ? 200 : r.status)),
+    paidOk,
+  };
+}
 
 const RECIPE_ITEM_SCHEMA = {
   type: "OBJECT",
@@ -79,33 +222,16 @@ async function callGemini(
   const parts: Record<string, unknown>[] = [{ text: prompt }];
   if (imageBase64) parts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: schema,
-          ...(temperature !== undefined ? { temperature } : {}),
-        },
-      }),
+  const body = {
+    contents: [{ parts }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: schema,
+      ...(temperature !== undefined ? { temperature } : {}),
     },
-  );
-
-  if (!res.ok) {
-    throw new Error(`Gemini API error: ${res.status} ${await res.text()}`);
-  }
-
-  const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
 
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Gemini 응답에 결과가 없어요.");
-  return text;
+  return generateWithFallback(env, imageBase64 ? IMAGE_MODELS : TEXT_MODELS, body);
 }
 
 function toRecipes(text: string): Recipe[] {

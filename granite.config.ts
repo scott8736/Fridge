@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: "냉장고 레시피",
     primaryColor: "#3FD599", // 화면에 노출될 앱의 기본 색상으로 바꿔주세요.
-    icon: "https://static.toss.im/appsintoss/22039/96cafce...", // TODO: 콘솔 '앱 정보'에 등록한 로고 전체 URL 전체를 붙여넣어주세요(스크린샷에서 잘려있어요).
+    icon: "https://static.toss.im/appsintoss/22039/96cafce6-74a8-4e37-9010-40d61f1103e9.png", // 콘솔 '앱 정보' 아이콘 (miniapp_get 으로 확인)
   },
   web: {
     host: "119.199.135.225", // 이 PC의 LAN IP. 아이폰이 다른 IP로 뜨면 ipconfig로 다시 확인해서 교체해주세요.

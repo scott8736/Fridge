@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BannerAd } from "../components/BannerAd";
 import { PartnersDisclosure } from "../components/PartnersDisclosure";
 import { getCoupangPartnersLink } from "../api";
+import { logClick } from "../analytics";
 import { addFavorite, loadFavorites, removeFavorite } from "../favorites";
 import { getCategoryStyle } from "../foodVisuals";
 import type { Recipe } from "../types";
@@ -23,6 +24,7 @@ export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
   }, [recipe.id]);
 
   const handleToggleFavorite = async () => {
+    logClick("toggle_favorite", { on: !isFavorite });
     if (isFavorite) {
       await removeFavorite(recipe.id);
       setIsFavorite(false);
@@ -34,6 +36,7 @@ export function RecipeDetail({ recipe, onBack }: RecipeDetailProps) {
 
   const handleBuyIngredient = async (ingredient: string) => {
     if (loadingKeyword) return;
+    logClick("coupang_click", { ingredient });
     setLoadingKeyword(ingredient);
     try {
       const url = await getCoupangPartnersLink(ingredient);

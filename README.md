@@ -13,14 +13,18 @@
 cd server
 npm install
 npx wrangler login          # 최초 1회, Cloudflare 계정 로그인
-npx wrangler secret put GEMINI_API_KEY
+npx wrangler secret put GEMINI_FREE_KEYS   # 무료 키 여러 개, 쉼표로 구분 (먼저 돌려 씀)
+npx wrangler secret put GEMINI_PAID_KEY    # 무료가 전부 막혔을 때만, 하루 300회 상한
 npx wrangler secret put COUPANG_ACCESS_KEY
 npx wrangler secret put COUPANG_SECRET_KEY
 npm run deploy
 ```
 
-로컬 개발 시에는 `server/.dev.vars`(git에 커밋되지 않아요)에 아래 3개 키를 넣고 `npm run dev`로 실행하세요.
+로컬 개발 시에는 `server/.dev.vars`(git에 커밋되지 않아요)에 키를 넣고 `npm run dev`로 실행하세요.
 형식은 `server/.dev.vars.example` 참고.
+
+배포 후 `GET /api/health/deep` 으로 Gemini 키가 실제로 응답하는지 확인하세요.
+`/api/health` 는 Worker 가 떠 있는지만 봐서, 키가 죽어도 ok 를 줘요(2026-08~10 두 달간 이걸로 고장을 못 봤어요).
 
 배포가 끝나면 콘솔에 출력되는 워커 주소(`https://fridge-recipe-api.<subdomain>.workers.dev`)를 복사해두세요.
 
